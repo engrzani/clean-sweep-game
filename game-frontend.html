@@ -1,0 +1,513 @@
+<!-- 
+  ============================================================
+  CLEAN SWEEP STAKE GAME — SQUARESPACE HTML BLOCK
+  ============================================================
+  SETUP INSTRUCTIONS:
+  1. Replace YOUR_TURNSTILE_SITE_KEY with your Cloudflare Turnstile Site Key
+  2. Replace YOUR_WORKER_URL with your deployed Cloudflare Worker URL
+     e.g. https://clean-sweep-game.YOUR-SUBDOMAIN.workers.dev
+  3. Paste this entire block into a Squarespace Code Block (HTML mode)
+  ============================================================
+-->
+
+<style>
+  /* ── Reset & Container ── */
+  #csg-root * { box-sizing: border-box; margin: 0; padding: 0; }
+  #csg-root {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+    min-height: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 16px;
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  #csg-root::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,180,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  /* ── Card ── */
+  .csg-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 40px 36px;
+    max-width: 440px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ── Logo ── */
+  .csg-logo {
+    width: 120px;
+    height: auto;
+    margin-bottom: 18px;
+    filter: drop-shadow(0 0 12px rgba(0,180,255,0.4));
+  }
+
+  .csg-title {
+    color: #ffffff;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+  .csg-subtitle {
+    color: rgba(255,255,255,0.45);
+    font-size: 0.82rem;
+    margin-bottom: 28px;
+  }
+
+  /* ── Timer Display ── */
+  .csg-timer-wrap {
+    background: rgba(0,0,0,0.4);
+    border: 2px solid rgba(0,180,255,0.25);
+    border-radius: 14px;
+    padding: 22px 0;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  #csg-timer {
+    font-size: 3.8rem;
+    font-weight: 800;
+    color: #00b4ff;
+    letter-spacing: 2px;
+    font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 20px rgba(0,180,255,0.5);
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  #csg-timer.csg-win-color  { color: #00e676; text-shadow: 0 0 24px rgba(0,230,118,0.6); }
+  #csg-timer.csg-lose-color { color: #ff5252; text-shadow: 0 0 24px rgba(255,82,82,0.6); }
+  .csg-target-label {
+    margin-top: 8px;
+    color: rgba(255,255,255,0.3);
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Button ── */
+  #csg-btn {
+    width: 100%;
+    padding: 15px 0;
+    border: none;
+    border-radius: 10px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-bottom: 18px;
+    background: linear-gradient(90deg, #0077cc, #00b4ff);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0,180,255,0.35);
+  }
+  #csg-btn:hover { opacity: 0.88; }
+  #csg-btn:active { transform: scale(0.98); }
+  #csg-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── Status / Result ── */
+  #csg-status {
+    min-height: 22px;
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 16px;
+  }
+  #csg-status.csg-error { color: #ff6b6b; }
+  #csg-status.csg-success { color: #00e676; }
+
+  /* ── Turnstile ── */
+  .csg-captcha-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+  }
+
+  /* ── Attempts Badge ── */
+  .csg-attempts {
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.25);
+    margin-top: 10px;
+  }
+
+  /* ── Winner Modal ── */
+  .csg-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.78);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .csg-overlay.csg-show { display: flex; }
+  .csg-modal {
+    background: #111827;
+    border: 1px solid rgba(0,230,118,0.3);
+    border-radius: 20px;
+    padding: 36px 32px;
+    max-width: 380px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.7);
+    animation: csgFadeUp 0.3s ease;
+  }
+  @keyframes csgFadeUp {
+    from { opacity:0; transform: translateY(24px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+  .csg-modal h2 { color: #00e676; font-size: 1.6rem; margin-bottom: 6px; }
+  .csg-modal p  { color: rgba(255,255,255,0.6); font-size: 0.88rem; margin-bottom: 22px; }
+  .csg-modal input {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .csg-modal input:focus { border-color: #00e676; }
+  .csg-modal input::placeholder { color: rgba(255,255,255,0.3); }
+  .csg-modal-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(90deg, #00c853, #00e676);
+    color: #000;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 4px;
+    transition: opacity 0.2s;
+  }
+  .csg-modal-btn:hover { opacity: 0.88; }
+  .csg-modal-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  #csg-modal-status { font-size: 0.8rem; color: rgba(255,255,255,0.45); margin-top: 10px; min-height: 18px; }
+  #csg-modal-status.err { color: #ff6b6b; }
+</style>
+
+<!-- ─── MARKUP ─── -->
+<div id="csg-root">
+  <div class="csg-card">
+
+    <!-- Logo — replace src with your actual logo URL -->
+    <img
+      class="csg-logo"
+      src="https://images.squarespace-cdn.com/content/v1/YOURSITE/logo.png"
+      alt="Clear Choice Services Logo"
+      onerror="this.style.display='none'"
+    />
+
+    <div class="csg-title">Stop at 10.00 — Win a Month of Cleaning!</div>
+    <div class="csg-subtitle">Start the timer, stop it at exactly 10.00 seconds to win.</div>
+
+    <div class="csg-timer-wrap">
+      <div id="csg-timer">0.00</div>
+      <div class="csg-target-label">Target: 10.00 s</div>
+    </div>
+
+    <!-- Turnstile CAPTCHA — REPLACE data-sitekey -->
+    <div class="csg-captcha-wrap">
+      <div
+        id="csg-turnstile"
+        class="cf-turnstile"
+        data-sitekey="0x4AAAAAAC12vn58UPgTXV6k"
+        data-callback="csgOnTurnstileSuccess"
+        data-expired-callback="csgOnTurnstileExpire"
+        data-error-callback="csgOnTurnstileError"
+        data-theme="dark"
+        data-size="normal"
+      ></div>
+    </div>
+
+    <div id="csg-status">Verify the CAPTCHA above, then press Start.</div>
+
+    <button id="csg-btn" disabled>Start</button>
+
+    <div class="csg-attempts" id="csg-attempts-label"></div>
+  </div>
+</div>
+
+<!-- Winner Modal -->
+<div class="csg-overlay" id="csg-overlay" role="dialog" aria-modal="true" aria-labelledby="csg-modal-title">
+  <div class="csg-modal">
+    <h2 id="csg-modal-title">🎉 You Won!</h2>
+    <p>Enter your details below to claim your free month of cleaning service.</p>
+    <input id="csg-name"  type="text"  placeholder="Full Name"    autocomplete="name"  maxlength="80" />
+    <input id="csg-email" type="email" placeholder="Email Address" autocomplete="email" maxlength="120" />
+    <input id="csg-phone" type="tel"   placeholder="Phone Number"  autocomplete="tel"   maxlength="20" />
+    <button class="csg-modal-btn" id="csg-claim-btn">Claim My Prize</button>
+    <div id="csg-modal-status"></div>
+  </div>
+</div>
+
+<!-- Load Turnstile SDK -->
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+
+<script>
+/* =============================================================
+   CLEAN SWEEP GAME — FRONT-END ENGINE (OBFUSCATED-READY)
+   Replace WORKER_ENDPOINT before deploying.
+   ============================================================= */
+(function () {
+  'use strict';
+
+  /* ── CONFIG — EDIT THESE ── */
+  var _W = 'YOUR_WORKER_URL'; // e.g. https://clean-sweep-game.xyz.workers.dev
+
+  /* ── State ── */
+  var _tsToken   = null;   // Turnstile token
+  var _running   = false;
+  var _startEpoch = 0;
+  var _rafId     = null;
+  var _stopped   = false;
+  var _elapsed   = 0;
+  var _attempts  = 0;      // local counter (enforced server-side)
+  var _sessionId = null;   // server-issued nonce
+  var _winToken  = null;   // server-issued win proof
+
+  /* ── DOM refs ── */
+  var $timer    = document.getElementById('csg-timer');
+  var $btn      = document.getElementById('csg-btn');
+  var $status   = document.getElementById('csg-status');
+  var $overlay  = document.getElementById('csg-overlay');
+  var $attempts = document.getElementById('csg-attempts-label');
+
+  /* ── Turnstile callbacks (global scope required) ── */
+  window.csgOnTurnstileSuccess = function (token) {
+    _tsToken = token;
+    setStatus('CAPTCHA verified — Press Start!', '');
+    if (!_running && !_stopped) $btn.disabled = false;
+  };
+  window.csgOnTurnstileExpire = function () {
+    _tsToken = null;
+    $btn.disabled = true;
+    setStatus('CAPTCHA expired — please re-verify.', 'csg-error');
+  };
+  window.csgOnTurnstileError = function () {
+    _tsToken = null;
+    $btn.disabled = true;
+    setStatus('CAPTCHA error — please refresh.', 'csg-error');
+  };
+
+  /* ── Helpers ── */
+  function setStatus(msg, cls) {
+    $status.textContent = msg;
+    $status.className = cls || '';
+  }
+  function pad(n) {
+    return n.toFixed(2);
+  }
+  function updateAttemptsLabel() {
+    var rem = Math.max(0, 3 - _attempts);
+    $attempts.textContent = rem > 0
+      ? 'Attempts remaining today: ' + rem
+      : 'No attempts left today.';
+  }
+
+  /* ── Timer loop ── */
+  function loop(ts) {
+    if (!_running) return;
+    _elapsed = (performance.now() - _startEpoch) / 1000;
+    var display = pad(_elapsed);
+    $timer.textContent = display;
+    _rafId = requestAnimationFrame(loop);
+  }
+
+  /* ── START ── */
+  function doStart() {
+    if (!_tsToken) { setStatus('Please verify the CAPTCHA first.', 'csg-error'); return; }
+    if (_running)  return;
+
+    // Request a server-side session nonce before starting
+    fetch(_W + '/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ turnstileToken: _tsToken })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.error) {
+        setStatus(data.error, 'csg-error');
+        if (data.error.indexOf('attempt') !== -1 || data.error.indexOf('Too many') !== -1) {
+          $btn.disabled = true;
+        }
+        // Reset Turnstile so user must re-verify
+        if (window.turnstile) window.turnstile.reset('#csg-turnstile');
+        _tsToken = null;
+        $btn.disabled = true;
+        return;
+      }
+      _sessionId = data.sessionId;
+      _attempts  = data.attemptsUsed || _attempts;
+      updateAttemptsLabel();
+
+      // ── Actually start the timer ──
+      _running   = true;
+      _stopped   = false;
+      _startEpoch = performance.now();
+      $btn.textContent = 'STOP';
+      $btn.style.background = 'linear-gradient(90deg, #cc0000, #ff5252)';
+      $btn.style.boxShadow  = '0 6px 20px rgba(255,82,82,0.35)';
+      setStatus('Timer running — stop at 10.00!', '');
+      $timer.className = '';
+      _rafId = requestAnimationFrame(loop);
+    })
+    .catch(function () {
+      setStatus('Network error. Please try again.', 'csg-error');
+    });
+  }
+
+  /* ── STOP ── */
+  function doStop() {
+    if (!_running) return;
+    _running = false;
+    cancelAnimationFrame(_rafId);
+    _stopped = true;
+
+    var stoppedAt = _elapsed;
+    var display   = pad(stoppedAt);
+    $timer.textContent = display;
+    $btn.disabled = true;
+    setStatus('Verifying…', '');
+
+    // Submit to Worker for server-side validation
+    fetch(_W + '/stop', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId     : _sessionId,
+        clientTime    : stoppedAt,
+        turnstileToken: _tsToken
+      })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      _attempts = data.attemptsUsed || _attempts;
+      updateAttemptsLabel();
+
+      if (data.won) {
+        $timer.className = 'csg-win-color';
+        setStatus('🎉 You stopped at ' + display + ' — YOU WIN!', 'csg-success');
+        _winToken = data.winToken;
+        setTimeout(function () { $overlay.classList.add('csg-show'); }, 800);
+      } else if (data.error) {
+        setStatus(data.error, 'csg-error');
+      } else {
+        $timer.className = 'csg-lose-color';
+        var diff = (stoppedAt - 10).toFixed(3);
+        var sign = parseFloat(diff) >= 0 ? '+' : '';
+        setStatus('You stopped at ' + display + ' (' + sign + diff + 's). Try again!', 'csg-error');
+        scheduleReset();
+      }
+    })
+    .catch(function () {
+      setStatus('Verification error. Please try again.', 'csg-error');
+      scheduleReset();
+    });
+  }
+
+  function scheduleReset() {
+    setTimeout(function () {
+      // Reset timer display
+      $timer.textContent = '0.00';
+      $timer.className = '';
+      $btn.textContent = 'Start';
+      $btn.style.background = 'linear-gradient(90deg, #0077cc, #00b4ff)';
+      $btn.style.boxShadow  = '0 6px 20px rgba(0,180,255,0.35)';
+      setStatus('Re-verify CAPTCHA to play again.', '');
+      _stopped   = false;
+      _sessionId = null;
+      _tsToken   = null;
+      $btn.disabled = true;
+      if (window.turnstile) window.turnstile.reset('#csg-turnstile');
+      updateAttemptsLabel();
+    }, 2500);
+  }
+
+  /* ── Button click ── */
+  $btn.addEventListener('click', function () {
+    if (!_running && !_stopped) doStart();
+    else if (_running)          doStop();
+  });
+
+  /* ── Winner form claim ── */
+  document.getElementById('csg-claim-btn').addEventListener('click', function () {
+    var name  = document.getElementById('csg-name').value.trim();
+    var email = document.getElementById('csg-email').value.trim();
+    var phone = document.getElementById('csg-phone').value.trim();
+    var mst   = document.getElementById('csg-modal-status');
+
+    if (!name || !email || !phone) {
+      mst.textContent = 'All fields are required.';
+      mst.className = 'err';
+      return;
+    }
+    // Basic email sanity check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      mst.textContent = 'Please enter a valid email.';
+      mst.className = 'err';
+      return;
+    }
+
+    var claimBtn = document.getElementById('csg-claim-btn');
+    claimBtn.disabled = true;
+    mst.textContent = 'Submitting…';
+    mst.className = '';
+
+    fetch(_W + '/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionId : _sessionId,
+        winToken  : _winToken,
+        name      : name,
+        email     : email,
+        phone     : phone
+      })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.ok) {
+        mst.textContent = '✅ Submitted! We will be in touch soon.';
+        mst.className = '';
+        claimBtn.style.display = 'none';
+        setTimeout(function () {
+          $overlay.classList.remove('csg-show');
+          scheduleReset();
+        }, 3000);
+      } else {
+        mst.textContent = data.error || 'Submission failed. Please try again.';
+        mst.className = 'err';
+        claimBtn.disabled = false;
+      }
+    })
+    .catch(function () {
+      mst.textContent = 'Network error. Please try again.';
+      mst.className = 'err';
+      claimBtn.disabled = false;
+    });
+  });
+
+  /* ── Init ── */
+  updateAttemptsLabel();
+
+})();
+</script>
