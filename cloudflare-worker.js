@@ -22,6 +22,7 @@ const SESSION_TTL_MS   = 30_000;       // 30 s — max allowed game session
 const ALLOWED_ORIGINS  = [
   'https://www.clearchoiceservices.info',
   'https://clearchoiceservices.info',
+  'https://clearchoiceservices.squarespace.com',
 ];
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ROUTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
