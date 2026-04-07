@@ -1,4 +1,4 @@
-name = "clean-sweep-game"
+name = "clean-sweep-game1"
 main = "cloudflare-worker.js"
 compatibility_date = "2026-04-07"
 
