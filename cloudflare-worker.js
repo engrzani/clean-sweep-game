@@ -23,6 +23,7 @@ const ALLOWED_ORIGINS  = [
   'https://www.clearchoiceservices.info',
   'https://clearchoiceservices.info',
   'https://clearchoiceservices.squarespace.com',
+  'https://clean-sweep-game.pages.dev',
 ];
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ ROUTER ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
