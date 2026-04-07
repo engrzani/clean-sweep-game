@@ -1,0 +1,7 @@
+name = "clean-sweep-game"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-04-07"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "dfa00e303327454ca3eef2c729d806e8"
